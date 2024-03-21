@@ -1,0 +1,236 @@
+<html>
+
+<head>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/topojson.v3.min.js"></script>
+
+  <style>
+    .state {
+      fill: lightgrey;
+    }
+
+    .outline {
+      fill: none;
+      stroke: black;
+      stroke-width: 1px;
+    }
+
+    .graticule {
+      fill: none;
+      stroke: grey;
+      stroke-width: 1px;
+    }
+
+    .tooltip {
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <svg id="choropleth" height="600" width="900" style="background: #445; margin-top:50px"></svg>
+
+  <svg id="colorLegend" height="100" width="600" style="background: #fff; margin-top:30px"></svg>
+
+  <svg id="lineChart" height="300" width="900" style="background: #fff; margin-top:30px"></svg>
+
+  <script>
+
+    // MAP
+    const svg = d3.select("#choropleth");
+    const width = svg.attr("width");
+    const height = svg.attr("height");
+    const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+    const mapWidth = width - margin.left - margin.right;
+    const mapHeight = height - margin.top - margin.bottom;
+    const map = svg.append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    const requestData = async function () {
+
+      const us = await d3.json("us-smaller.json");
+      console.log(us);
+
+      var states = topojson.feature(us, us.objects.states);
+      var statesMesh = topojson.mesh(us, us.objects.states);
+      var projection = d3.geoAlbersUsa().fitSize([mapWidth, mapHeight], states);
+      var path = d3.geoPath().projection(projection);
+      console.log(states);
+      console.log(statesMesh);
+
+      let graticule = d3.geoGraticule10();
+      console.log(graticule);
+      map.append("path").attr("class", "graticule").attr("d", path(graticule));
+
+      let statePaths = map.selectAll("path.state").data(states.features)
+        .join("path")
+        .attr("class", "state")
+        .attr("note", d => d.id)
+        .attr("d", path)
+        .on('mouseover', mouseEntersState)
+        .on('mouseout', mouseLeavesState);
+
+      map.append("path").datum(statesMesh)
+        .attr("class", "outline")
+        .attr("d", path);
+
+      const alcoholData = await d3.csv("avg_alcohol_consumption.csv", d3.autoType);
+      console.log(alcoholData);
+
+      var stateDict = {}
+      alcoholData.forEach(d => {
+        stateDict[d.state_code] = d;
+      });
+      console.log(stateDict)
+
+      // Missing Data
+      stateDict[11] = { total: 0 };
+      stateDict[72] = { total: 0 };
+      stateDict[78] = { total: 0 };
+
+      const minMax = d3.extent(alcoholData, d => d.number_of_drinks_total);
+      console.log(minMax);
+
+      const colorScale = d3.scaleLog().domain(minMax).interpolate(d => d3.interpolateGnBu)
+
+      map.selectAll(".state")
+        .style("fill", d => colorScale(stateDict[d.id].number_of_drinks_total));
+
+      drawLegend("#colorLegend", colorScale);
+
+      // TOOLTIP
+      let tooltipWidth = 120;
+      let tooltipHeight = 40;
+
+      let momesh = map.append("path")
+        .attr("class", "mouseover outline")
+        .style("stroke", "black")
+        .style("stroke-width", 3)
+        .attr("d", "");
+
+      let tooltip = map.append("g")
+        .attr("class", "tooltip")
+        .attr("visibility", "hidden");
+      tooltip.append("rect")
+        .attr("fill", "black")
+        .attr("opacity", 0.9)
+        .attr("x", -tooltipWidth / 2.0)
+        .attr("y", 0)
+        .attr("width", tooltipWidth)
+        .attr("height", tooltipHeight)
+      let txt = tooltip.append("text")
+        .attr("fill", "white")
+        .attr("text-anchor", "middle")
+        .attr("alignment-baseline", "hanging")
+        .attr("x", 0)
+        .attr("y", 2);
+      let txt2 = tooltip.append("text")
+        .attr("fill", "white")
+        .attr("text-anchor", "middle")
+        .attr("alignment-baseline", "hanging")
+        .attr("x", 0)
+        .attr("y", 22);
+
+      function mouseEntersState() {
+        tooltip.style("visibility", "visible")
+
+        let state = d3.select(this);
+
+        let stateID = state.datum().id;
+        let stateDat = stateDict[stateID]
+
+        function capitalizeWords(str) {
+          return str.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        }
+
+        stateDat.state = capitalizeWords(stateDat.state);
+        stateDat.number_of_drinks_total = Math.floor(stateDat.number_of_drinks_total);
+
+        txt.text(stateDat.state);
+        txt2.text(stateDat.number_of_drinks_total);
+
+        let bounds = path.bounds(state.datum());
+
+        let xPos = (bounds[0][0] + bounds[1][0]) / 2.0;
+        let yPos = bounds[1][1] - 15;
+
+        tooltip.attr("transform", `translate(${xPos},${yPos})`);
+
+        var mo = topojson.mesh(us, us.objects.states, function (a, b) { return a.id === stateID || b.id === stateID; });
+
+        momesh.datum(mo).attr("d", path)
+      }
+
+      function mouseLeavesState() {
+
+        tooltip.style("visibility", "hidden");
+
+        let state = d3.select(this);
+
+        momesh.attr("d", "");
+      }
+
+    }
+    requestData();
+
+
+    function drawLegend(legendSelector, legendColorScale) {
+      const offsets = {
+        width: 10,
+        top: 2,
+        bottom: 24
+      };
+
+      const stepSize = 10;
+      const minMaxExtendPercent = 0.03;
+
+      const legend = d3.select(legendSelector);
+      const legendHeight = legend.attr("height");
+      const legendBarWidth = legend.attr("width") - (offsets.width * 2);
+      const legendMinMax = d3.extent(legendColorScale.domain());
+
+      const minMaxExtension = (legendMinMax[1] - legendMinMax[0]) * minMaxExtendPercent;
+      const barHeight = legendHeight - offsets.top - offsets.bottom;
+
+      let barScale = d3.scaleLinear()
+        .domain([legendMinMax[0] - minMaxExtension, legendMinMax[1] + minMaxExtension])
+        .range([0, legendBarWidth]);
+      let barAxis = d3.axisBottom(barScale)
+        .ticks(5)
+        .tickFormat(d => d3.format(".1f")(d));
+
+      let bar = legend.append("g")
+        .attr("class", "legend colorbar")
+        .attr("transform", `translate(${offsets.width},${offsets.top})`);
+
+      const numSteps = Math.floor(legendBarWidth / stepSize);
+      const dataRange = barScale.domain();
+      const dataStep = (dataRange[1] - dataRange[0]) / numSteps;
+
+      for (let i = 0; i < numSteps; i++) {
+        let dataValue = dataRange[0] + i * dataStep;
+        bar.append("rect")
+          .attr("x", i * stepSize)
+          .attr("y", 0)
+          .attr("width", stepSize)
+          .attr("height", barHeight)
+          .style("fill", legendColorScale(dataValue));
+      }
+
+      legend.append("g")
+        .attr("class", "legend axis")
+        .attr("transform", `translate(${offsets.width},${offsets.top + barHeight + 5})`)
+        .call(barAxis);
+    }
+
+
+  </script>
+
+
+
+</body>
+
+</html>
