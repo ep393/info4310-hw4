@@ -24,6 +24,14 @@
     .tooltip {
       pointer-events: none;
     }
+
+    .gridlines .domain {
+      display: none;
+    }
+
+    .gridlines line {
+      stroke: #aaa;
+    }
   </style>
 </head>
 
@@ -33,7 +41,7 @@
 
   <svg id="colorLegend" height="100" width="600" style="background: #fff; margin-top:30px"></svg>
 
-  <svg id="lineChart" height="300" width="900" style="background: #fff; margin-top:30px"></svg>
+  <svg id="lineplot" height="500" width="800" style="margin-top:50px"></svg>
 
   <script>
 
@@ -50,17 +58,12 @@
     const requestData = async function () {
 
       const us = await d3.json("us-smaller.json");
-      console.log(us);
-
       var states = topojson.feature(us, us.objects.states);
       var statesMesh = topojson.mesh(us, us.objects.states);
       var projection = d3.geoAlbersUsa().fitSize([mapWidth, mapHeight], states);
       var path = d3.geoPath().projection(projection);
-      console.log(states);
-      console.log(statesMesh);
 
       let graticule = d3.geoGraticule10();
-      console.log(graticule);
       map.append("path").attr("class", "graticule").attr("d", path(graticule));
 
       let statePaths = map.selectAll("path.state").data(states.features)
@@ -69,20 +72,19 @@
         .attr("note", d => d.id)
         .attr("d", path)
         .on('mouseover', mouseEntersState)
-        .on('mouseout', mouseLeavesState);
+        .on('mouseout', mouseLeavesState)
+        .on('click', stateClicked);
 
       map.append("path").datum(statesMesh)
         .attr("class", "outline")
         .attr("d", path);
 
       const alcoholData = await d3.csv("avg_alcohol_consumption.csv", d3.autoType);
-      console.log(alcoholData);
 
       var stateDict = {}
       alcoholData.forEach(d => {
         stateDict[d.state_code] = d;
       });
-      console.log(stateDict)
 
       // Missing Data
       stateDict[11] = { total: 0 };
@@ -90,7 +92,6 @@
       stateDict[78] = { total: 0 };
 
       const minMax = d3.extent(alcoholData, d => d.number_of_drinks_total);
-      console.log(minMax);
 
       const colorScale = d3.scaleLog().domain(minMax).interpolate(d => d3.interpolateGnBu)
 
@@ -98,6 +99,10 @@
         .style("fill", d => colorScale(stateDict[d.id].number_of_drinks_total));
 
       drawLegend("#colorLegend", colorScale);
+
+      // LINE CHART
+      const lineData = await d3.json("states-data.json");
+      console.log(lineData)
 
       // TOOLTIP
       let tooltipWidth = 120;
@@ -171,6 +176,81 @@
         let state = d3.select(this);
 
         momesh.attr("d", "");
+      }
+
+      function stateClicked(event, d) {
+        const stateId = d.id;
+        plotLineChart("#lineplot", lineData[stateDict[d.id].state], lineData['Us Total']);
+      }
+
+      function plotLineChart(selector, data, usData) {
+        const svg = d3.select(selector);
+        svg.selectAll("*").remove();
+
+        const width = svg.attr("width");
+        const height = svg.attr("height");
+        const margin = { top: 10, right: 10, bottom: 50, left: 50 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+
+        let annotations = svg.append("g").attr("id", "annotations");
+        let chartArea = svg.append("g").attr("id", "points")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Y axis
+        const combinedData = data.concat(usData);
+        const totalExtent = d3.extent(combinedData, d => d['ethanol_all_drinks_gallons_per_capita']);
+        const totalScale = d3.scaleLinear().domain(totalExtent).range([chartHeight, 0]);
+        let leftAxis = d3.axisLeft(totalScale)
+        let leftGridlines = d3.axisLeft(totalScale)
+          .tickSize(-chartWidth - 10)
+          .tickFormat("")
+        annotations.append("g")
+          .attr("class", "y axis")
+          .attr("transform", `translate(${margin.left - 10},${margin.top})`)
+          .call(leftAxis)
+        annotations.append("g")
+          .attr("class", "y gridlines")
+          .attr("transform", `translate(${margin.left - 10},${margin.top})`)
+          .call(leftGridlines);
+
+        // X axis
+        const yearExtent = d3.extent(data, d => d['year']);
+        const yearScale = d3.scaleLinear().domain(yearExtent).range([0, chartWidth]);
+        let bottomAxis = d3.axisBottom(yearScale)
+          .tickFormat(d3.format("d"));
+        let bottomGridlines = d3.axisBottom(yearScale)
+          .tickSize(-chartHeight - 10)
+          .tickFormat("")
+        annotations.append("g")
+          .attr("class", "x axis")
+          .attr("transform", `translate(${margin.left},${chartHeight + margin.top + 10})`)
+          .call(bottomAxis);
+        annotations.append("g")
+          .attr("class", "x gridlines")
+          .attr("transform", `translate(${margin.left},${chartHeight + margin.top + 10})`)
+          .call(bottomGridlines);
+
+        var lineGen = d3.line()
+          .x(d => yearScale(d['year']))
+          .y(d => totalScale(d['ethanol_all_drinks_gallons_per_capita']))
+          .curve(d3.curveMonotoneX);
+
+        chartArea.append("path")
+          .datum(data)
+          .attr("class", "line")
+          .attr("fill", "none")
+          .attr("stroke", "steelblue")
+          .attr("stroke-width", 3)
+          .attr("d", lineGen);
+
+        chartArea.append("path")
+          .datum(usData)
+          .attr("class", "line")
+          .attr("fill", "none")
+          .attr("stroke", "red")
+          .attr("stroke-width", 3)
+          .attr("d", lineGen);
       }
 
     }
