@@ -6,7 +6,6 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script src="https://d3js.org/topojson.v3.min.js"></script>
 
-
   <style>
     .state {
       fill: lightgrey;
@@ -35,19 +34,25 @@
     .gridlines line {
       stroke: #aaa;
     }
+
+    .container h4 {
+      text-align: center;
+    }
   </style>
 </head>
 
 <body>
 
   <div class="container">
+    <h4>Where Do People Consume the Most Alcohol in the United States?</h4>
+
+    <p>
+      Add description.
+    </p>
 
     <svg id="choropleth" height="600" width="900" style="background: #445; margin-top:50px"></svg>
-
     <svg id="colorLegend" height="100" width="600" style="background: #fff; margin-top:30px"></svg>
-
     <svg id="lineplotAll" height="500" width="800" style="margin-top:50px"></svg>
-
     <svg id="lineplotDetail" height="500" width="800" style="margin-top:50px"></svg>
 
     <script>
@@ -239,26 +244,82 @@
             .attr("transform", `translate(${margin.left},${chartHeight + margin.top + 10})`)
             .call(bottomGridlines);
 
+          // let lineTooltip = svg.append("text")
+          //   .attr("class", "line-tooltip")
+          //   .style("opacity", 0)
+          //   .attr("text-anchor", "middle")
+          //   .attr("alignment-baseline", "middle")
+          //   .style("font-size", "12px")
+          //   .style("pointer-events", "none");
+
           var lineGen = d3.line()
             .x(d => yearScale(d['year']))
             .y(d => totalScale(d['ethanol_all_drinks_gallons_per_capita']))
             .curve(d3.curveMonotoneX);
 
-          chartArea.append("path")
+          const statePath = chartArea.append("path")
             .datum(data)
             .attr("class", "line")
             .attr("fill", "none")
             .attr("stroke", "steelblue")
             .attr("stroke-width", 3)
             .attr("d", lineGen);
+          // .on("mouseover", function (event) {
+          //   const [x, y] = d3.pointer(event, chartArea.node());
 
-          chartArea.append("path")
+          //   const adjustedX = x + margin.left;
+          //   const adjustedY = y + margin.top - 15;
+
+          //   lineTooltip.style("opacity", 1)
+          //     .text(stateName)
+          //     .style("fill", "steelblue")
+          //     .attr("transform", `translate(${adjustedX},${adjustedY})`)
+
+          //   chartArea.selectAll("path")
+          //     .style("opacity", 0.3);
+
+          //   statePath.style("opacity", 1);
+          // })
+          // .on("mouseout", function () {
+          //   lineTooltip.style("opacity", 0)
+          //   chartArea.selectAll("path")
+          //     .style("opacity", 1);
+
+          //   countryGroups.selectAll("circle")
+          //     .style("opacity", 1);
+          // });
+
+          const usPath = chartArea.append("path")
             .datum(usData)
             .attr("class", "line")
             .attr("fill", "none")
             .attr("stroke", "red")
             .attr("stroke-width", 3)
             .attr("d", lineGen);
+          // .on("mouseover", function (event) {
+          //   const [x, y] = d3.pointer(event, chartArea.node());
+
+          //   const adjustedX = x + margin.left;
+          //   const adjustedY = y + margin.top - 15;
+
+          //   lineTooltip.style("opacity", 1)
+          //     .text("US Total")
+          //     .style("fill", "red")
+          //     .attr("transform", `translate(${adjustedX},${adjustedY})`);
+
+          //   chartArea.selectAll("path")
+          //     .style("opacity", 0.3);
+
+          //   usPath.style("opacity", 1);
+          // })
+          // .on("mouseout", function () {
+          //   lineTooltip.style("opacity", 0)
+          //   chartArea.selectAll("path")
+          //     .style("opacity", 1);
+
+          //   countryGroups.selectAll("circle")
+          //     .style("opacity", 1);
+          // });
 
           // Axis Labels
           svg.append("text")
@@ -448,7 +509,6 @@
 
       }
       requestData();
-
 
       function drawLegend(legendSelector, legendColorScale) {
         const offsets = {
