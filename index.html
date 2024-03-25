@@ -27,6 +27,17 @@
       pointer-events: none;
     }
 
+    .tooltip-circle {
+      position: absolute;
+      text-align: center;
+      padding: 8px;
+      font: 12px sans-serif;
+      background: lightsteelblue;
+      border: 0px;
+      border-radius: 8px;
+      pointer-events: none;
+    }
+
     .gridlines .domain {
       display: none;
     }
@@ -73,6 +84,8 @@
       const mapHeight = height - margin.top - margin.bottom;
       const map = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      let selectedStateId = null;
 
       const requestData = async function () {
 
@@ -189,12 +202,34 @@
         }
 
         function mouseLeavesState() {
-
           tooltip.style("visibility", "hidden");
-
           let state = d3.select(this);
-
           momesh.attr("d", "");
+        }
+
+        const tooltipCircle = d3.select("body")
+          .append("div")
+          .attr("class", "tooltip-circle")
+          .style("opacity", 0);
+
+        function handleMouseOver(event, d) {
+          d3.select(this).attr("r", 5);
+
+          tooltipCircle.transition()
+            .duration(200)
+            .style("opacity", 0.9);
+
+          tooltipCircle.html(d.ethanol_all_drinks_gallons_per_capita)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 20) + "px");
+        }
+
+        function handleMouseOut(event, d) {
+          d3.select(this).attr("r", 3);
+
+          tooltipCircle.transition()
+            .duration(500)
+            .style("opacity", 0);
         }
 
         function stateClicked(event, d) {
@@ -251,22 +286,6 @@
             .attr("transform", `translate(${margin.left},${chartHeight + margin.top + 10})`)
             .call(bottomGridlines);
 
-          let lineTooltipBg = svg.append("rect")
-            .attr("class", "line-tooltip-bg")
-            .attr("width", 70)
-            .attr("height", 20)
-            .style("fill", "white")
-            .style("opacity", 0)
-            .style("pointer-events", "none");
-
-          let lineTooltip = svg.append("text")
-            .attr("class", "line-tooltip")
-            .style("opacity", 0)
-            .attr("text-anchor", "middle")
-            .attr("alignment-baseline", "middle")
-            .style("font-size", "12px")
-            .style("pointer-events", "none");
-
           var lineGen = d3.line()
             .x(d => yearScale(d['year']))
             .y(d => totalScale(d['ethanol_all_drinks_gallons_per_capita']))
@@ -278,26 +297,7 @@
             .attr("fill", "none")
             .attr("stroke", "steelblue")
             .attr("stroke-width", 3)
-            .attr("d", lineGen)
-            .on("mouseover", function (event) {
-              const [x, y] = d3.pointer(event, chartArea.node());
-
-              const adjustedX = x + margin.left;
-              const adjustedY = y + margin.top - 15;
-
-              lineTooltipBg.style("opacity", 1)
-                .attr("x", adjustedX - (lineTooltip.node().getBBox().width / 2) - 10)
-                .attr("y", adjustedY - 10);
-
-              lineTooltip.style("opacity", 1)
-                .text(stateName)
-                .style("fill", "steelblue")
-                .attr("transform", `translate(${adjustedX},${adjustedY})`)
-            })
-            .on("mouseout", function () {
-              lineTooltipBg.style("opacity", 0);
-              lineTooltip.style("opacity", 0);
-            });
+            .attr("d", lineGen);
 
           const usPath = chartArea.append("path")
             .datum(usData)
@@ -305,26 +305,26 @@
             .attr("fill", "none")
             .attr("stroke", "red")
             .attr("stroke-width", 3)
-            .attr("d", lineGen)
-            .on("mouseover", function (event) {
-              const [x, y] = d3.pointer(event, chartArea.node());
+            .attr("d", lineGen);
 
-              const adjustedX = x + margin.left;
-              const adjustedY = y + margin.top - 15;
+          // Append some circles
+          chartArea.selectAll("circle-state").data(data)
+            .join("circle")
+            .attr("r", 3)
+            .attr("fill", "navy")
+            .attr("cx", d => yearScale(d['year']))
+            .attr("cy", d => totalScale(d['ethanol_all_drinks_gallons_per_capita']))
+            .on("mouseover", handleMouseOver)
+            .on("mouseout", handleMouseOut);
 
-              lineTooltipBg.style("opacity", 1)
-                .attr("x", adjustedX - (lineTooltip.node().getBBox().width / 2) - 10)
-                .attr("y", adjustedY - 10);
-
-              lineTooltip.style("opacity", 1)
-                .text("US Total")
-                .style("fill", "red")
-                .attr("transform", `translate(${adjustedX},${adjustedY})`);
-            })
-            .on("mouseout", function () {
-              lineTooltipBg.style("opacity", 0);
-              lineTooltip.style("opacity", 0);
-            });
+          chartArea.selectAll("circle-us").data(usData)
+            .join("circle")
+            .attr("r", 3)
+            .attr("fill", "maroon")
+            .attr("cx", d => yearScale(d['year']))
+            .attr("cy", d => totalScale(d['ethanol_all_drinks_gallons_per_capita']))
+            .on("mouseover", handleMouseOver)
+            .on("mouseout", handleMouseOut);
 
           // Axis Labels
           svg.append("text")
@@ -341,37 +341,6 @@
               (height - margin.bottom + 45) + ")")
             .style("text-anchor", "middle")
             .text("Year");
-
-          // Legend
-          // const lineChartLegend = svg.append("g")
-          //   .attr("class", "legend")
-          //   .attr("transform", `translate(${width - margin.right + 20}, ${margin.top})`);
-
-          // // Legend for US Total
-          // lineChartLegend.append("circle")
-          //   .attr("cx", 0)
-          //   .attr("cy", 0)
-          //   .attr("r", 6)
-          //   .style("fill", "red");
-          // lineChartLegend.append("text")
-          //   .attr("x", 10)
-          //   .attr("y", 0)
-          //   .attr("dy", "0.32em")
-          //   .style("text-anchor", "start")
-          //   .text("US Total");
-
-          // // Legend for Selected State
-          // lineChartLegend.append("circle")
-          //   .attr("cx", 0)
-          //   .attr("cy", 20) // Offset the second legend item
-          //   .attr("r", 6)
-          //   .style("fill", "steelblue");
-          // lineChartLegend.append("text")
-          //   .attr("x", 10)
-          //   .attr("y", 20) // Offset the second legend item
-          //   .attr("dy", "0.32em")
-          //   .style("text-anchor", "start")
-          //   .text(stateName); // Use the stateName parameter
         }
 
         function plotLineChartDetail(selector, data, stateName) {
@@ -462,77 +431,95 @@
             .attr("fill", "none")
             .attr("stroke", "#fbc02d")
             .attr("stroke-width", 3)
-            .attr("d", lineBeer)
-            .on("mouseover", function (event) {
-              const [x, y] = d3.pointer(event, chartArea.node());
-
-              const adjustedX = x + margin.left;
-              const adjustedY = y + margin.top - 15;
-
-              lineTooltipBg.style("opacity", 1)
-                .attr("x", adjustedX - (lineTooltip.node().getBBox().width / 2) - 10)
-                .attr("y", adjustedY - 10);
-
-              lineTooltip.style("opacity", 1)
-                .text("Beer")
-                .style("fill", "#fbc02d")
-                .attr("transform", `translate(${adjustedX},${adjustedY})`)
-            })
-            .on("mouseout", function () {
-              lineTooltipBg.style("opacity", 0);
-              lineTooltip.style("opacity", 0);
-            });
+            .attr("d", lineBeer);
 
           const winePath = chartArea.append("path")
             .datum(data)
             .attr("fill", "none")
             .attr("stroke", "#880e4f")
             .attr("stroke-width", 3)
-            .attr("d", lineWine)
-            .on("mouseover", function (event) {
-              const [x, y] = d3.pointer(event, chartArea.node());
-
-              const adjustedX = x + margin.left;
-              const adjustedY = y + margin.top - 15;
-
-              lineTooltipBg.style("opacity", 1)
-                .attr("x", adjustedX - (lineTooltip.node().getBBox().width / 2) - 10)
-                .attr("y", adjustedY - 10);
-
-              lineTooltip.style("opacity", 1)
-                .text("Wine")
-                .style("fill", "#880e4f")
-                .attr("transform", `translate(${adjustedX},${adjustedY})`)
-            })
-            .on("mouseout", function () {
-              lineTooltipBg.style("opacity", 0);
-              lineTooltip.style("opacity", 0);
-            });
+            .attr("d", lineWine);
 
           const spiritPath = chartArea.append("path")
             .datum(data)
             .attr("fill", "none")
             .attr("stroke", "#c77800")
             .attr("stroke-width", 3)
-            .attr("d", lineSpirit)
-            .on("mouseover", function (event) {
-              const [x, y] = d3.pointer(event, chartArea.node());
+            .attr("d", lineSpirit);
 
-              const adjustedX = x + margin.left;
-              const adjustedY = y + margin.top - 15;
+          chartArea.selectAll("circle-beer").data(data)
+            .join("circle")
+            .attr("r", 3)
+            .attr("fill", "#c49000")
+            .attr("cx", d => yearScale(d['year']))
+            .attr("cy", d => ethanolScale(d.ethanol_beer_gallons_per_capita))
+            .on("mouseover", function (event, d) {
+              d3.select(event.currentTarget).attr("r", 5);
 
-              lineTooltipBg.style("opacity", 1)
-                .attr("x", adjustedX - (lineTooltip.node().getBBox().width / 2) - 10)
-                .attr("y", adjustedY - 10);
+              tooltipCircle.transition()
+                .duration(200)
+                .style("opacity", 0.9);
 
-              lineTooltip.style("opacity", 1)
-                .text("Spirit")
-                .style("fill", "#c77800")
-                .attr("transform", `translate(${adjustedX},${adjustedY})`)
+              tooltipCircle.html(d.ethanol_beer_gallons_per_capita)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 20) + "px");
             })
-            .on("mouseout", function () {
-              lineTooltipBg.style("opacity", 0);
-              lineTooltip.style("opacity", 0);
+            .on("mouseout", function (event, d) {
+              d3.select(event.currentTarget).attr("r", 3);
+
+              tooltipCircle.transition()
+                .duration(500)
+                .style("opacity", 0);
+            });
+
+          chartArea.selectAll("circle-wine").data(data)
+            .join("circle")
+            .attr("r", 3)
+            .attr("fill", "#5e0a35")
+            .attr("cx", d => yearScale(d['year']))
+            .attr("cy", d => ethanolScale(d.ethanol_wine_gallons_per_capita))
+            .on("mouseover", function (event, d) {
+              d3.select(event.currentTarget).attr("r", 5);
+
+              tooltipCircle.transition()
+                .duration(200)
+                .style("opacity", 0.9);
+
+              tooltipCircle.html(d.ethanol_wine_gallons_per_capita)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 20) + "px");
+            })
+            .on("mouseout", function (event, d) {
+              d3.select(event.currentTarget).attr("r", 3);
+
+              tooltipCircle.transition()
+                .duration(500)
+                .style("opacity", 0);
+            });
+
+          chartArea.selectAll("circle-spirit").data(data)
+            .join("circle")
+            .attr("r", 3)
+            .attr("fill", "#8f5c00")
+            .attr("cx", d => yearScale(d['year']))
+            .attr("cy", d => ethanolScale(d.ethanol_spirit_gallons_per_capita))
+            .on("mouseover", function (event, d) {
+              d3.select(event.currentTarget).attr("r", 5);
+
+              tooltipCircle.transition()
+                .duration(200)
+                .style("opacity", 0.9);
+
+              tooltipCircle.html(d.ethanol_spirit_gallons_per_capita)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 20) + "px");
+            })
+            .on("mouseout", function (event, d) {
+              d3.select(event.currentTarget).attr("r", 3);
+
+              tooltipCircle.transition()
+                .duration(500)
+                .style("opacity", 0);
             });
 
           // Axis Labels
@@ -550,37 +537,6 @@
               (height - margin.bottom + 45) + ")")
             .style("text-anchor", "middle")
             .text("Year");
-
-          // // Legend
-          // const lineChartLegend = svg.append("g")
-          //   .attr("class", "legend")
-          //   .attr("transform", `translate(${width - margin.right + 20}, ${margin.top})`);
-
-          // // Legend for US Total
-          // lineChartLegend.append("circle")
-          //   .attr("cx", 0)
-          //   .attr("cy", 0)
-          //   .attr("r", 6)
-          //   .style("fill", "red");
-          // lineChartLegend.append("text")
-          //   .attr("x", 10)
-          //   .attr("y", 0)
-          //   .attr("dy", "0.32em")
-          //   .style("text-anchor", "start")
-          //   .text("US Total");
-
-          // // Legend for Selected State
-          // lineChartLegend.append("circle")
-          //   .attr("cx", 0)
-          //   .attr("cy", 20) // Offset the second legend item
-          //   .attr("r", 6)
-          //   .style("fill", "steelblue");
-          // lineChartLegend.append("text")
-          //   .attr("x", 10)
-          //   .attr("y", 20) // Offset the second legend item
-          //   .attr("dy", "0.32em")
-          //   .style("text-anchor", "start")
-          //   .text(stateName); // Use the stateName parameter
         }
 
       }
