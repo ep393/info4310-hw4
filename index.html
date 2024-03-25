@@ -48,6 +48,7 @@
 
     .container h4 {
       text-align: center;
+      color: navy;
     }
   </style>
 </head>
@@ -57,7 +58,7 @@
   <div class="container">
     <h4>Where Do People Consume the Most Alcohol in the United States?</h4>
 
-    <p>
+    <p style="text-align: center;">
       Americans love their alcohol. According to data published by the National Institute on Alcohol Abuse and
       Alcoholism, U.S. residents' consumption of alcoholic beverages has been on a steady incline since 1995. The map
       below offers a visual representation of these consumption patterns, with each state's alcohol intake displayed in
@@ -68,10 +69,13 @@
       patterns.
     </p>
 
-    <svg id="choropleth" height="600" width="900" style="background: #445; margin-top:50px"></svg>
-    <svg id="colorLegend" height="100" width="600" style="background: #fff; margin-top:30px"></svg>
-    <svg id="lineplotAll" height="500" width="800" style="margin-top:50px"></svg>
-    <svg id="lineplotDetail" height="500" width="800" style="margin-top:50px"></svg>
+    <svg id="choropleth" height="600" width="900" style="background: #445; margin-top:10px"></svg>
+    <svg id="colorLegend" height="100" width="600"
+      style="background: #fff; margin: 30px auto 0 150px; display: block;"></svg>
+    <svg id="dynamicTitle1" height="50" width="900" style="margin-top: 50px; display: block;"></svg>
+    <svg id="lineplotAll" height="500" width="800" style="margin-top:5px"></svg>
+    <svg id="dynamicTitle2" height="50" width="900" style="margin-top: 50px; display: block;"></svg>
+    <svg id="lineplotDetail" height="500" width="890" style="margin-top:5px"></svg>
 
     <script>
 
@@ -219,7 +223,7 @@
             .duration(200)
             .style("opacity", 0.9);
 
-          tooltipCircle.html(d.ethanol_all_drinks_gallons_per_capita)
+          tooltipCircle.html(d.ethanol_all_drinks_gallons_per_capita.toFixed(2))
             .style("left", (event.pageX + 10) + "px")
             .style("top", (event.pageY - 20) + "px");
         }
@@ -234,8 +238,72 @@
 
         function stateClicked(event, d) {
           const stateId = d.id;
+
+          const stateName = stateDict[d.id].state;
+          const stateColor = colorScale(stateDict[d.id].number_of_drinks_total);
+
+          updateDynamicTitle(stateName, stateColor);
           plotLineChartAll("#lineplotAll", lineData[stateDict[d.id].state], lineData['Us Total'], stateDict[d.id].state);
           plotLineChartDetail("#lineplotDetail", lineData[stateDict[d.id].state], lineData['Us Total'], stateDict[d.id].state);
+        }
+
+        function updateDynamicTitle(stateName, stateColor) {
+          const dynamicTitle1 = d3.select("#dynamicTitle1");
+          const dynamicTitle2 = d3.select("#dynamicTitle2");
+          dynamicTitle1.selectAll("*").remove();
+          dynamicTitle2.selectAll("*").remove();
+
+          const titleGroup1 = dynamicTitle1.append("g")
+            .attr("transform", "translate(450,25)");
+
+          titleGroup1.append("text")
+            .attr("fill", "black")
+            .attr("text-anchor", "end")
+            .attr("alignment-baseline", "middle")
+            .text("Ethanol Consumption Per Capita: ");
+
+          titleGroup1.append("text")
+            .attr("fill", "red")
+            .attr("font-weight", "bold")
+            .attr("dx", "5")
+            .attr("text-anchor", "start")
+            .attr("alignment-baseline", "middle")
+            .text("United States");
+
+          titleGroup1.append("text")
+            .attr("fill", "black")
+            .attr("text-anchor", "start")
+            .attr("dx", "105")
+            .attr("alignment-baseline", "middle")
+            .text("vs.");
+
+          let finalStateColor = stateName === "Utah" ? "#ADD8E6" : stateColor;
+
+          titleGroup1.append("text")
+            .attr("fill", finalStateColor)
+            .attr("font-weight", "bold")
+            .attr("text-anchor", "start")
+            .attr("dx", "130")
+            .attr("alignment-baseline", "middle")
+            .text(stateName);
+
+          const titleGroup2 = dynamicTitle2.append("g")
+            .attr("transform", "translate(550,25)");
+
+          titleGroup2.append("text")
+            .attr("fill", "black")
+            .attr("text-anchor", "end")
+            .attr("alignment-baseline", "middle")
+            .text("Ethanol Consumption by Type Per Capita in");
+
+          titleGroup2.append("text")
+            .attr("fill", finalStateColor)
+            .attr("font-weight", "bold")
+            .attr("text-anchor", "start")
+            .attr("dx", "5")
+            .attr("alignment-baseline", "middle")
+            .text(stateName);
+
         }
 
         function plotLineChartAll(selector, data, usData, stateName) {
@@ -349,7 +417,7 @@
 
           const width = svg.attr("width");
           const height = svg.attr("height");
-          const margin = { top: 10, right: 10, bottom: 50, left: 60 };
+          const margin = { top: 10, right: 100, bottom: 50, left: 60 };
           const chartWidth = width - margin.left - margin.right;
           const chartHeight = height - margin.top - margin.bottom;
 
@@ -460,7 +528,7 @@
                 .duration(200)
                 .style("opacity", 0.9);
 
-              tooltipCircle.html(d.ethanol_beer_gallons_per_capita)
+              tooltipCircle.html(d.ethanol_beer_gallons_per_capita.toFixed(2))
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY - 20) + "px");
             })
@@ -485,7 +553,7 @@
                 .duration(200)
                 .style("opacity", 0.9);
 
-              tooltipCircle.html(d.ethanol_wine_gallons_per_capita)
+              tooltipCircle.html(d.ethanol_wine_gallons_per_capita.toFixed(2))
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY - 20) + "px");
             })
@@ -510,7 +578,7 @@
                 .duration(200)
                 .style("opacity", 0.9);
 
-              tooltipCircle.html(d.ethanol_spirit_gallons_per_capita)
+              tooltipCircle.html(d.ethanol_spirit_gallons_per_capita.toFixed(2))
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY - 20) + "px");
             })
@@ -537,6 +605,34 @@
               (height - margin.bottom + 45) + ")")
             .style("text-anchor", "middle")
             .text("Year");
+
+          const legendSpacing = 20;
+          let legend = svg.append('g')
+            .attr('class', 'legend')
+            .attr('transform', `translate(${chartWidth + 90},${chartHeight - 225})`);
+
+          const legendData = [
+            { color: '#fbc02d', label: 'Beer' },
+            { color: '#c77800', label: 'Spirit' },
+            { color: '#880e4f', label: 'Wine' }
+          ];
+
+          let legendItem = legend.selectAll('.legend-item')
+            .data(legendData)
+            .enter().append('g')
+            .attr('class', 'legend-item')
+            .attr('transform', (d, i) => `translate(0, ${i * legendSpacing})`);
+
+          legendItem.append('circle')
+            .attr('cx', 0)
+            .attr('cy', 0)
+            .attr('r', 5)
+            .style('fill', d => d.color);
+
+          legendItem.append('text')
+            .attr('x', 10)
+            .attr('y', 5)
+            .text(d => d.label);
         }
 
       }
