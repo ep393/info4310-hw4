@@ -3,7 +3,7 @@
 **Link**: https://ep393.github.io/info4310-hw4/
 
 ## Overview
-This document critiques and suggests improvements for visualizations dealing with alcohol consumption patterns globally and historically in the United States. The data sources include the World Health Organization and the National Institute on Alcohol Abuse and Alcoholism.
+This document critiques and suggests improvements for the data representations used in the article "Dear Mona Followup: Where Do People Drink The Most Beer, Wine And Spirits?" by FiveThirthyEight. The improvement narrows down the scope to the visualizations dealing with alcohol consumption patterns in the United States. The data sources include the World Health Organization and the National Institute on Alcohol Abuse and Alcoholism.
 
 ## Critique of the Existing Visualization
 
@@ -37,7 +37,7 @@ Utilizing a more comprehensive dataset from the Inter-university Consortium for 
 - **Features**: Refinement in the display of trends and interactive data points.
 - **Interaction**: Users can explore detailed consumption data for specific years and compare trends with the national average.
 
-#### Ethanol Consumption by Type
+#### Line Graph of Ethanol Consumption by Type
 - **Features**: Comparative analysis with clear axes and distinct colors for each beverage type.
 - **Interaction**: Detailed information available through interaction, allowing users to trace consumption history of beer, spirit, and wine.
 
